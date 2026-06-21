@@ -1282,3 +1282,5 @@ document.addEventListener('DOMContentLoaded',function(){
   document.getElementById('stop-scan-btn').addEventListener('click',function(){window.stopScan();});
   render();
 });
+
+ // Correction de la persistance d'etat pour le prix de l'estimation
