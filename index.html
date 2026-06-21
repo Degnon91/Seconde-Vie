@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Decathlon Seconde Vie</title>
+  <!-- QR Code library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <!-- Google Fonts : Inter -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <!-- Design system Decathlon -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="phone">
+  <div id="screen"></div>
+  <nav id="nav">
+    <button class="ni" id="nav-home">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 11l9-8 9 8M5 10v10h5v-5h4v5h5V10"/></svg>
+      Accueil
+    </button>
+    <button class="ni" id="nav-cat">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M21 21l-4-4"/></svg>
+      Catalogue
+    </button>
+    <button class="ni on" id="nav-sv">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 12a8 8 0 018-8 8 8 0 016.9 4M20 4v4h-4M20 12a8 8 0 01-8 8 8 8 0 01-6.9-4M4 20v-4h4"/></svg>
+      Seconde Vie
+    </button>
+    <button class="ni" id="nav-acc">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M4 21c0-4 3.6-6 8-6s8 2 8 6"/></svg>
+      Compte
+    </button>
+  </nav>
+</div>
+
+<!-- Photo overlay -->
+<div id="photo-ov">
+  <div style="position:relative;flex:1;overflow:hidden;min-height:75vh">
+    <video id="pv" autoplay playsinline muted style="width:100%;height:100%;object-fit:cover;min-height:75vh"></video>
+    <canvas id="pc" style="display:none"></canvas>
+    <div style="position:absolute;top:0;left:0;right:0;padding:50px 20px 16px;display:flex;justify-content:space-between;align-items:center">
+      <button onclick="stopPhoto()" style="background:rgba(0,0,0,.6);border:none;color:#fff;border-radius:50%;width:38px;height:38px;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center">✕</button>
+      <div style="color:#fff;font-size:14px;font-weight:600;background:rgba(0,0,0,.4);padding:6px 14px;border-radius:var(--r-pill)" id="photo-label">Photo</div>
+      <div style="width:38px"></div>
+    </div>
+  </div>
+  <div style="background:#000;padding:24px 20px;display:flex;justify-content:center;align-items:center;gap:20px">
+    <button onclick="stopPhoto()" style="background:rgba(255,255,255,.2);border:none;color:#fff;border-radius:50%;width:48px;height:48px;font-size:18px;cursor:pointer">✕</button>
+    <button onclick="capturePhoto()" style="width:72px;height:72px;border-radius:50%;background:#fff;border:5px solid rgba(255,255,255,.4);cursor:pointer;font-size:30px;display:flex;align-items:center;justify-content:center">📷</button>
+    <div style="width:48px"></div>
+  </div>
+</div>
+
+<!-- Scan overlay -->
+<div id="scan-ov">
+  <div style="color:#fff;font-size:17px;font-weight:700;margin-bottom:20px">Scanner le QR code client</div>
+  <div class="sf" style="background:#111">
+    <video id="sv" autoplay playsinline muted></video>
+    <canvas id="sc" style="display:none"></canvas>
+    <div class="sf-bg"></div>
+    <div class="sf-tl"></div><div class="sf-tr"></div>
+    <div class="sf-bl"></div><div class="sf-br"></div>
+    <div class="sl"></div>
+  </div>
+  <div id="ss" style="color:#aaa;font-size:13px;margin-top:16px;text-align:center;padding:0 24px">Scannez le QR code du client.</div>
+  <button id="stop-scan-btn" style="margin-top:24px;padding:14px 36px;border-radius:var(--r-pill);border:none;background:#fff;font-weight:700;font-size:14px;cursor:pointer;">✕ Annuler</button>
+</div>
+  <!-- Moteur de calcul (données + scoring) — charger en premier -->
+  <script src="scoring.js"></script>
+  <!-- Application (UI, pages, navigation) -->
+  <script src="app.js"></script>
+</body>
+</html>
