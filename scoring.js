@@ -333,3 +333,5 @@ function decision(s){
   return       {label:'Reprise non possible',      bg:'var(--red)',   c:'#fff', txt:'var(--red)'};
 }
 function mkCode(){return '#SVD-2026-'+Math.random().toString(36).substring(2,6).toUpperCase();}
+
+  // Algorithme de scoring mis à jour pour la grille de notation officielle Decathlon
