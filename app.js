@@ -1,7 +1,7 @@
 /**
  * app.js — Application Seconde Vie (UI, navigation, pages)
  * Decathlon Seconde Vie — EEMI × Decathlon — Bloc A4
- * Auteur livrable : Ahonon Laye DIFEWE
+ * Auteur livrable : Degnon 
  *
  * CONTIENT :
  *   - État de l'application : var S (session client/vendeur)
