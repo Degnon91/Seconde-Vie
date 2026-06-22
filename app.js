@@ -1,248 +1,26 @@
 /**
- * app.js — Application Seconde Vie (UI, navigation, pages)
- * Decathlon Seconde Vie — EEMI × Decathlon — Bloc A4
- * Auteur livrable : Degnon 
- *
- * CONTIENT :
- *   - État de l'application : var S (session client/vendeur)
- *   - Schémas SVG de diagnostic : DIAG_SVG, DIAG_SVG_EXT
- *   - Pages client : pLogin, pH, pT, pVeloType, pB, pI, pD, pR, pRes, pRdv, pConf
- *   - Pages vendeur : pSellerLogin, pSH, pSS, pSD, pSDiag, pSRes
- *   - Pages communes : pCatalogue, pCompte, pDetail
- *   - Navigation : go(), render()
- *   - Fonctions photo/scan, événements
- *
- * DÉPEND DE : scoring.js (doit être chargé en premier)
+ * app.js — Application Seconde Vie (UI, pages, navigation)
+ * Decathlon Seconde Vie — EEMI x Decathlon — Bloc A4
+ * Requiert scoring.js chargé en premier
  */
 
-// ===== TOUT LE CODE LOGIQUE EST CELUI DE VOTRE COLLÈGUE — INCHANGÉ =====
-// Seul le CSS/design a été modifié pour appliquer le design system Figma Decathlon.
+/**
+ * scoring.js — Moteur de diagnostic et de calcul de prix
+ * Decathlon Seconde Vie — EEMI × Decathlon — Bloc A4
+ * Auteur livrable : Ahonon Laye DIFEWE
+ *
+ * CONTIENT :
+ *   - Données métier : TYPES, BRANDS_BY_CAT, BRANDS_BY_TYPE
+ *   - Critères de diagnostic : CDIAG, CDIAG_BY_CAT (16 catégories), VDIAG
+ *   - Tables de conversion : SMAP, SLBL, VLBL, VMAP
+ *   - Moteur de scoring : calcScore(), calcPrice()
+ *   - Helpers : getCS(), decision(), mkCode()
+ *
+ * USAGE : charger AVANT app.js
+ *   [scoring.js doit être chargé en premier]
+ *   [puis app.js]
+ */
 
-var S = {
-  page:'login', client:null, meta:{type:'',brand:'',model:'',year:'2021',price:'',km:1500},
-  scores:{}, sscores:{}, photos:{},
-  step:0, sstep:0, code:null, rdvDay:18, rdvSlot:'14h00', rdvMag:0,
-  seller:null, sellerCode:null, expertMode:false,
-  newDiagMeta:{type:'',brand:'',model:'',year:'2021',price:''}
-};
-window.DOS = {};
-
-function H(s){return s||'';}
-function ic(path){return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">'+path+'</svg>';}
-function svgBack(){return '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><polyline points="15 18 9 12 15 6"/></svg>';}
-function svgPerson(){return '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,.9)" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';}
-function svgCheck(){return '<svg width="32" height="32" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="11" fill="#02BE8A"/><polyline points="6 12 10 16 18 8" stroke="white" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>';}
-function svgInfo(){return '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="flex-shrink:0;margin-top:1px"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>';}
-
-function render(){
-  var PAGES={login:pLogin,seller_login:pSellerLogin,home:pH,step_type:pT,step_velo_type:pVeloType,step_brand:pB,step_info:pI,diag:pD,repairs:pR,result:pRes,rdv:pRdv,confirmed:pConf,catalogue:pCatalogue,compte:pCompte,detail:pDetail,
-             seller_home:pSH,seller_scan:pSS,seller_dos:pSD,seller_diag:pSDiag,seller_result:pSRes,
-             new_diag_type:pNDT,new_diag_info:pNDI,new_diag_diag:pNDD};
-  var fn=PAGES[S.page]||pH;
-  document.getElementById('screen').innerHTML=fn();
-  document.getElementById('nav').style.display=(S.page==='confirmed')?'none':'flex';
-  if(S.page==='result'||S.page==='confirmed'){
-    setTimeout(function(){var el=document.getElementById('qrbox');if(el&&el.innerHTML===''){try{new QRCode(el,{text:S.code||'#SVD',width:130,height:130,colorDark:'#3643BA',colorLight:'#fff'});}catch(e){}}},150);
-  }
-}
-function go(p){S.page=p;render();var s=document.getElementById('screen');if(s)s.scrollTop=0;}
-
-// ===== PAGES CLIENT =====
-function pLogin(){
-  return '<div style="background:var(--blue);min-height:100svh;display:flex;flex-direction:column;justify-content:center;padding:40px 24px;position:relative;overflow:hidden">'+
-    '<div style="position:absolute;right:-60px;top:-60px;width:280px;height:280px;background:radial-gradient(circle,rgba(255,255,255,.1) 0%,transparent 70%);border-radius:50%;pointer-events:none"></div>'+
-    '<div style="text-align:center;margin-bottom:36px;position:relative">'+''+
-      '<div style="display:flex;align-items:center;justify-content:center;gap:10px;margin-bottom:4px"><span style="font-size:22px;font-weight:900;color:#fff;letter-spacing:-.01em">DECATHLON</span></div>'+
-      '<div style="font-size:28px;font-weight:900;color:#fff;letter-spacing:-.02em">Seconde Vie</div>'+
-      '<div style="font-size:13px;color:rgba(255,255,255,.7);margin-top:5px;font-weight:500">Decathlon · Reprise & Revente</div>'+
-    '</div>'+
-    '<div style="background:rgba(255,255,255,.12);border-radius:20px;padding:24px;backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.2)">'+
-      '<div style="color:rgba(255,255,255,.7);font-size:12px;font-weight:600;margin-bottom:6px;letter-spacing:.02em">VOTRE PRÉNOM</div>'+
-      '<input id="ln" class="inp" placeholder="ex : Marie, Lucas..." style="background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.25);color:#fff;margin-bottom:14px;font-weight:500">'+
-      '<div style="color:rgba(255,255,255,.7);font-size:12px;font-weight:600;margin-bottom:6px;letter-spacing:.02em">MOT DE PASSE <span style="font-size:10px;opacity:.7">(optionnel pour ce prototype)</span></div>'+
-      '<input id="lp" class="inp" type="password" placeholder="••••••" style="background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.25);color:#fff;margin-bottom:20px">'+
-      '<button class="btn" style="background:#fff;color:var(--blue);font-weight:800;font-size:15px" onclick="doLogin()">Se connecter</button>'+
-      '<div style="font-size:11px;color:rgba(255,255,255,.55);text-align:center;margin-top:10px">⚠ Prototype — les données ne sont pas sauvegardées entre sessions</div>'+
-    '</div>'+
-    '<div style="text-align:center;margin-top:20px;font-size:13px;color:rgba(255,255,255,.7)">Vous êtes vendeur ? <span style="font-weight:700;cursor:pointer;text-decoration:underline;color:#fff" onclick="go(\'seller_login\')">Connexion vendeur →</span></div>'+
-  '</div>';
-}
-
-function pSellerLogin(){
-  return '<div style="background:var(--blue);min-height:100svh;display:flex;flex-direction:column;justify-content:center;padding:40px 24px;position:relative;overflow:hidden">'+
-    '<div style="position:absolute;right:-60px;top:-60px;width:280px;height:280px;background:radial-gradient(circle,rgba(255,255,255,.1) 0%,transparent 70%);border-radius:50%;pointer-events:none"></div>'+
-    '<div style="text-align:center;margin-bottom:36px;position:relative">'+''+
-      '<div style="font-size:28px;font-weight:900;color:#fff;letter-spacing:-.02em">Espace Vendeur</div>'+
-      '<div style="font-size:13px;color:rgba(255,255,255,.7);margin-top:5px">Réservé aux collaborateurs Decathlon</div>'+
-    '</div>'+
-    '<div style="background:rgba(255,255,255,.12);border-radius:20px;padding:24px;backdrop-filter:blur(8px);border:1px solid rgba(255,255,255,.2)">'+
-      '<div style="color:rgba(255,255,255,.7);font-size:12px;font-weight:600;margin-bottom:6px;letter-spacing:.02em">PRÉNOM COLLABORATEUR</div>'+
-      '<input id="sln" class="inp" placeholder="ex : Degnon, Sophie..." style="background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.25);color:#fff;margin-bottom:14px;font-weight:500">'+
-      '<div style="color:rgba(255,255,255,.7);font-size:12px;font-weight:600;margin-bottom:6px;letter-spacing:.02em">MOT DE PASSE <span style="font-size:10px;opacity:.7">(optionnel pour ce prototype)</span></div>'+
-      '<input id="slp" class="inp" type="password" placeholder="••••••" style="background:rgba(255,255,255,.15);border:1.5px solid rgba(255,255,255,.25);color:#fff;margin-bottom:20px">'+
-      '<button class="btn" style="background:#fff;color:var(--blue);font-weight:800;font-size:15px" onclick="doSellerLogin()">Se connecter</button>'+
-      '<div style="font-size:11px;color:rgba(255,255,255,.55);text-align:center;margin-top:10px">⚠ Prototype — les données ne sont pas sauvegardées entre sessions</div>'+
-    '</div>'+
-    '<div style="text-align:center;margin-top:20px;font-size:13px;color:rgba(255,255,255,.7);cursor:pointer" onclick="go(\'login\')">← Retour espace client</div>'+
-  '</div>';
-}
-
-function pH(){
-  return '<div class="hblue">'+
-    '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'+
-      '<span class="badge badge-client">CLIENT</span>'+
-      '<div style="display:flex;align-items:center;gap:6px">'+
-        '<div style="background:rgba(255,255,255,.15);border-radius:8px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;padding:4px"></div>'+
-        '<span style="font-size:20px;font-weight:900;letter-spacing:-.02em">Seconde Vie</span>'+
-      '</div>'+
-      '<div style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.15);border-radius:var(--r-pill);padding:5px 12px 5px 6px">'+svgPerson()+'<span style="font-size:13px;font-weight:600">'+(S.client&&S.client.name?S.client.name:'Moi')+'</span></div>'+
-    '</div>'+
-    '<div style="font-size:16px;font-weight:800;margin-top:6px;letter-spacing:-.01em">Estimez votre vélo en 5 minutes.</div>'+
-    '<div style="font-size:13px;opacity:.82;margin-top:3px;line-height:1.5">Offre finale confirmée après diagnostic en magasin.</div>'+
-  '</div>'+
-  '<div class="p16">'+
-    '<div style="display:flex;gap:8px;margin-bottom:16px">'+
-      stat('12 800+','vélos repris','var(--blue)')+stat('4.6 ★','satisfaction','var(--orange)')+stat('−70 %','vs. le neuf','var(--green-dk)')+
-    '</div>'+
-    '<div class="card sh mb16">'+
-      '<div style="font-size:15px;font-weight:700;margin-bottom:14px">Comment ça marche ?</div>'+
-      sr('1','Estimez en ligne','Quelques questions simples.')+
-      sr('2','Venez en magasin','Un vendeur vérifie l\'état réel.')+
-      sr('3','Recevez une offre finale','Confirmée après diagnostic en magasin.')+
-      '<div class="info" style="margin-top:14px">'+svgInfo()+'<span>Ces éléments seront vérifiés par le vendeur en magasin et peuvent ajuster l\'offre de reprise.</span></div>'+
-    '</div>'+
-    '<button class="btn bb mb12" onclick="go(\'step_type\')">Estimer mon équipement →</button>'+
-    '<div style="text-align:center;font-size:13px;color:var(--gray)">Vendeur ? <span style="color:var(--blue);font-weight:700;cursor:pointer" onclick="go(\'login\')">Se déconnecter et changer d\'espace</span></div>'+
-  '</div>';
-}
-function stat(n,l,c){return '<div class="card sh" style="flex:1;text-align:center;padding:13px 8px"><div style="font-size:18px;font-weight:800;color:'+c+'">'+n+'</div><div style="font-size:10px;color:var(--gray);margin-top:3px;font-weight:500">'+l+'</div></div>';}
-function sr(n,t,s){return '<div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:12px"><div style="width:28px;height:28px;border-radius:50%;background:var(--blue-lt);color:var(--blue);font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">'+n+'</div><div><div style="font-weight:600;font-size:14px">'+t+'</div><div style="font-size:12px;color:var(--gray);margin-top:2px;line-height:1.45">'+s+'</div></div></div>';}
-
-function pT(){
-  // Étape 1 : toutes les catégories d'équipement à vendre
-  var CATS=[
-    {id:'velo',     ico:'🚲', lbl:'Vélo, cyclisme',                  img:'https://upload.wikimedia.org/wikipedia/commons/thumb/4/41/Simple_bicycle_2.jpg/320px-Simple_bicycle_2.jpg'},
-    {id:'fitness',  ico:'🏋️', lbl:'Fitness, musculation',            img:'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2e/Fitness_center_-_Weight_room.jpg/320px-Fitness_center_-_Weight_room.jpg'},
-    {id:'camping',  ico:'⛺', lbl:'Camping, randonnée, trekking',    img:'https://upload.wikimedia.org/wikipedia/commons/thumb/2/2f/Tent_at_Timberline.jpg/320px-Tent_at_Timberline.jpg'},
-    {id:'hiver',    ico:'⛷️', lbl:"Sports d'hiver",                  img:'https://upload.wikimedia.org/wikipedia/commons/thumb/7/7e/Skiing_downhill.jpg/320px-Skiing_downhill.jpg'},
-    {id:'trott',    ico:'🛴', lbl:'Trottinette, roller, skateboard', img:'https://upload.wikimedia.org/wikipedia/commons/thumb/7/71/Kick_scooter_-_Razor.jpg/320px-Kick_scooter_-_Razor.jpg'},
-    {id:'eau',      ico:'🏄', lbl:"Sports d'eau",                    img:'https://upload.wikimedia.org/wikipedia/commons/thumb/1/13/Surfing_in_Hawaii.jpg/320px-Surfing_in_Hawaii.jpg'},
-    {id:'raquettes',ico:'🎾', lbl:'Sports de raquettes',             img:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/31/Tennis_Racket_and_Balls.jpg/320px-Tennis_Racket_and_Balls.jpg'},
-    {id:'running',  ico:'👟', lbl:'Running et marche active',        img:'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e3/Running_-_front_view.jpg/320px-Running_-_front_view.jpg'},
-    {id:'golf',     ico:'⛳', lbl:'Golf',                            img:'https://upload.wikimedia.org/wikipedia/commons/thumb/e/e4/Golf_bag.jpg/320px-Golf_bag.jpg'},
-    {id:'peche',    ico:'🎣', lbl:'Pêche',                          img:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3c/Fly_fishing_in_the_Rockies.jpg/320px-Fly_fishing_in_the_Rockies.jpg'},
-    {id:'equi',     ico:'🐴', lbl:'Équitation',                     img:'https://upload.wikimedia.org/wikipedia/commons/thumb/d/d9/Collage_of_Nine_Horses.jpg/320px-Collage_of_Nine_Horses.jpg'},
-    {id:'combat',   ico:'🥊', lbl:'Sports de combat',               img:'https://upload.wikimedia.org/wikipedia/commons/thumb/4/44/Boxing_match_2012.jpg/320px-Boxing_match_2012.jpg'},
-    {id:'chasse',   ico:'🎯', lbl:'Chasse et tir sportif',          img:'https://upload.wikimedia.org/wikipedia/commons/thumb/b/b6/Hunting_dog.jpg/320px-Hunting_dog.jpg'},
-    {id:'escalade', ico:'🧗', lbl:'Escalade',                       img:'https://upload.wikimedia.org/wikipedia/commons/thumb/6/68/Rock_climbing_Joshua_Tree.jpg/320px-Rock_climbing_Joshua_Tree.jpg'},
-    {id:'petanque', ico:'🎳', lbl:'Pétanque',                       img:'https://upload.wikimedia.org/wikipedia/commons/thumb/a/a2/Jeu_de_boules_-_petanque.jpg/320px-Jeu_de_boules_-_petanque.jpg'},
-    {id:'vetements',ico:'👕', lbl:'Vêtements de sport',             img:'https://upload.wikimedia.org/wikipedia/commons/thumb/8/83/Sportswear_collection.jpg/320px-Sportswear_collection.jpg'},
-  ];
-  var cards=CATS.map(function(c){
-    var sel=S.meta.cat===c.id;
-    return '<div class="card sh mb8" style="cursor:pointer;border:2px solid '+(sel?'var(--blue)':'var(--border)')+';background:'+(sel?'var(--blue-lt)':'#fff')+';padding:0;overflow:hidden;border-radius:16px" onclick="pickCat(\''+c.id+'\')">'+
-      '<div style="display:flex;align-items:center;gap:0">'+
-        '<div style="width:90px;height:72px;flex-shrink:0;overflow:hidden;background:var(--bg)">'+
-          (c.img ? '<img src="'+c.img+'" style="width:100%;height:100%;object-fit:cover" onerror="this.style.display=\'none\';this.nextSibling.style.display=\'flex\'" />' : '') +
-          '<div style="width:100%;height:100%;display:'+(c.img?'none':'flex')+'%;align-items:center;justify-content:center;font-size:30px">'+c.ico+'</div>'+
-        '</div>'+
-        '<div style="flex:1;padding:0 14px;font-weight:600;font-size:14px;color:'+(sel?'var(--blue)':'var(--text)')+'">'+c.lbl+'</div>'+
-        (sel?'<div style="padding-right:14px;color:var(--blue);font-weight:800;font-size:18px">✓</div>':'')+
-      '</div>'+
-    '</div>';
-  }).join('');
-  var nextBtn=S.meta.cat?
-    (S.meta.cat==='velo'?'<button class="btn bb" onclick="go(\'step_velo_type\')">Continuer → Vélo, cyclisme</button>':
-    '<button class="btn bb" onclick="go(\'step_brand\')">Continuer → Voir les marques</button>'):
-    '<button class="btn bk" disabled>Sélectionnez une catégorie</button>';
-  return hdr(svgBack(),'home',"Que voulez-vous vendre ?",'Étape 1 sur 5','')+
-  '<div class="p16" style="padding-bottom:80px">'+
-    '<div class="info mb14">'+svgInfo()+'<span>Ces infos nous aident à estimer le juste prix. Elles seront vérifiées en magasin.</span></div>'+
-    cards+
-  '</div>'+
-  '<div style="position:fixed;bottom:68px;left:50%;transform:translateX(-50%);width:100%;max-width:390px;padding:8px 16px 12px;background:#fff;border-top:1px solid var(--border);z-index:50">'+
-    nextBtn+
-  '</div>';
-}
-function pickCat(id){S.meta.cat=id;render();}
-window.pickCat=pickCat;
-
-function pVeloType(){
-  // Étape 2 : type de vélo (depuis catégorie vélo) - carrousel horizontal
-  var VTYPES=[
-    {id:'vtt',lbl:'VTT',sub:'Tout terrain'},
-    {id:'route',lbl:'Route / Gravel',sub:'Longue distance'},
-    {id:'tout_chemin',lbl:'Tout chemin',sub:'Polyvalent'},
-    {id:'ville',lbl:'Vélo de ville',sub:'Quotidien'},
-    {id:'vae',lbl:'VAE Électrique',sub:'Assistance élect.'},
-    {id:'enfant',lbl:'Vélo enfant',sub:"Jusqu'à 14 ans"},
-    {id:'bmx',lbl:'BMX',sub:'Acrobaties'},
-  ];
-  var ICONS={vtt:'🚵',route:'🚴',tout_chemin:'🚲',ville:'🏙️',vae:'⚡',enfant:'🧒',bmx:'🤸'};
-  var cards=VTYPES.map(function(t){
-    var sel=S.meta.type===t.id;
-    return '<div style="flex-shrink:0;width:150px;border-radius:16px;border:2px solid '+(sel?'var(--blue)':'var(--border)')+';background:'+(sel?'var(--blue-lt)':'#fff')+';padding:14px 8px;text-align:center;cursor:pointer" onclick="setVeloType(\''+t.id+'\')">'+
-      '<div style="font-size:44px;margin-bottom:8px">'+ICONS[t.id]+'</div>'+
-      '<div style="font-weight:700;font-size:13px;color:'+(sel?'var(--blue)':'var(--text)')+'">'+t.lbl+'</div>'+
-      '<div style="font-size:11px;color:var(--gray);margin-top:2px">'+t.sub+'</div>'+
-    '</div>';
-  }).join('');
-  return hdr(svgBack(),'step_type','Type de vélo','Étape 2 sur 5','40')+
-  '<div class="p16" style="padding-bottom:80px">'+
-    '<div style="font-size:17px;font-weight:700;margin-bottom:4px">Quel type de vélo ?</div>'+
-    '<div style="font-size:13px;color:var(--gray);margin-bottom:14px">Sélectionnez la catégorie la plus proche.</div>'+
-    '<div style="display:flex;gap:12px;overflow-x:auto;padding-bottom:8px;margin-bottom:16px;-webkit-overflow-scrolling:touch;scrollbar-width:none">'+cards+'</div>'+
-  '</div>'+
-  '<div style="position:fixed;bottom:68px;left:50%;transform:translateX(-50%);width:100%;max-width:390px;padding:8px 16px 12px;background:#fff;border-top:1px solid var(--border);z-index:50">'+
-    (S.meta.type?'<button class="btn bb" onclick="go(\'step_brand\')">Suivant →</button>':'<button class="btn bk" disabled>Sélectionnez un type</button>')+
-  '</div>';
-}
-function setVeloType(id){S.meta.type=id;render();}
-window.setVeloType=setVeloType;
-
-
-function pB(){
-  // Si catégorie non-vélo, utiliser BRANDS_BY_CAT
-  var BRANDS;
-  if(S.meta.cat && S.meta.cat !== 'velo') {
-    BRANDS = BRANDS_BY_CAT[S.meta.cat] || ["Decathlon","Autre"];
-  } else {
-    BRANDS = BRANDS_BY_TYPE[S.meta.type] || BRANDS_BY_TYPE.vtt;
-  }
-  var items=BRANDS.map(function(b){
-    var safe=b.replace(/'/g,'&#39;');
-    return '<div class="rl'+(S.meta.brand===b?' sel':'')+'" onclick="pickBrand(this.dataset.b)" data-b="'+safe+'"><span style="font-weight:600;font-size:14px">'+b+'</span><div class="rd"></div></div>';
-  }).join('');
-  return hdr(svgBack(),'step_type','Votre vélo','Étape 2 sur 5','40')+
-  '<div class="p16">'+
-    '<div style="font-size:17px;font-weight:700;margin-bottom:4px">Quelle est la marque ?</div>'+
-    '<div style="font-size:13px;color:var(--gray);margin-bottom:14px;line-height:1.45">Sélectionnez la marque la plus proche.</div>'+
-    items+
-    '<div class="info mb16" style="margin-top:10px">'+svgInfo()+'<span>Ces infos aident à estimer le juste prix. Elles seront vérifiées en magasin.</span></div>'+
-    '<button class="btn bb" onclick="go(\'step_info\')"'+(S.meta.brand?'':' style="opacity:.45" disabled')+'>Suivant →</button>'+
-  '</div>';
-}
-
-function pI(){
-  return hdr(svgBack(),'step_brand','Informations','Étape 3 sur 5','60')+
-  '<div class="p16">'+
-    '<div class="card sh mb12"><label class="lbl">Modèle</label><input class="inp" placeholder="ex: Rockrider ST 520" value="'+H(S.meta.model)+'" oninput="S.meta.model=this.value"></div>'+
-    '<div class="card sh mb12"><label class="lbl">Année d\'achat</label><input class="inp" type="number" placeholder="2021" value="'+H(S.meta.year)+'" oninput="S.meta.year=this.value" min="2000" max="2026"></div>'+
-    '<div class="card sh mb12"><label class="lbl">Prix à l\'achat (€)</label><input class="inp" type="number" placeholder="ex: 349" value="'+H(S.meta.price)+'" oninput="S.meta.price=this.value"></div>'+
-   
-    (['velo','trott'].includes(S.meta.cat)||!S.meta.cat?
-      '<div class="card sh mb16">'+
-        '<label class="lbl">Kilom\u00e9trage approximatif</label>'+
-        '<div style="font-size:15px;font-weight:700;color:var(--blue);text-align:center;margin-bottom:6px" id="kmv">~ '+S.meta.km+' km</div>'+
-        '<input type="range" min="0" max="10000" step="500" value="'+S.meta.km+'" oninput="S.meta.km=parseInt(this.value);document.getElementById(\'kmv\').textContent=\'~ \'+this.value+\' km\'" style="width:100%;accent-color:var(--blue);margin-bottom:6px">'+
-        '<div style="display:flex;justify-content:space-between;font-size:12px;color:var(--gray)"><span>0 km</span><span>+10 000 km</span></div>'+
-      '</div>':'')+
-    '<button class="btn bb" onclick="S.step=0;go(\'diag\')">>Valider les informations →</button>'+
-  '</div>';
-}
-
-
-// Schémas SVG de diagnostic par section
 var DIAG_SVG = {
   cadre: '<div style="background:var(--blue-lt);border:2px dashed #C3C9F8;border-radius:16px;padding:16px;margin-bottom:16px">' +
     '<svg viewBox="0 0 320 180" style="width:100%;height:auto" fill="none">' +
@@ -468,68 +246,64 @@ function pD(){
 function chp(id,key,lbl,v){var km={good:'cg',warn:'cw',bad:'cb',na:'cn'};return '<button class="chip'+(v===key?' '+km[key]:'')+'" onclick="setScore(\''+id+'\',\''+key+'\')">'+lbl+'</button>';}
 
 function pR(){
-  var mapped=getCS();var score=calcScore(mapped);var price=calcPrice(score,S.meta);var adj=Math.max(0,Math.round(price*0.9/5)*5);
+  var mapped=getCS();var score=calcScore(mapped);var price=calcPrice(score,S.meta);var offreBrute=Math.max(5,Math.round(price*0.9/5)*5);
   var annee=parseInt(S.meta.year)||2021;
   var anneeCalc=Math.max(0,2026-annee);
   var afCalc=anneeCalc===0?0.55:anneeCalc===1?0.50:anneeCalc===2?0.44:anneeCalc===3?0.38:anneeCalc<=5?0.30:anneeCalc<=8?0.24:0.18;
   var prixNeuf=S.meta.price&&parseFloat(S.meta.price)>0?parseFloat(S.meta.price):((TYPES.find(function(x){return x.id===S.meta.type;})||TYPES[0]).base*2.5);
   var sc=S.scores;
+
+  // === TARIFS DE RÉPARATION PAR TYPE (prix atelier Decathlon 2026) ===
+  var COUT = (function(){
+    var t = S.meta.type || 'ville';
+    // Fourchettes réelles : vae > vtt route > ville > enfant > bmx
+    var tables = {
+      vae:    {c1b:120,c1w:45,c2:20,c3b:150,c3w:60,t1b:65,t1w:30,t2b:80,t2w:35,t3b:45,t3w:20,r1b:55,r1w:20,r2b:90,r2w:40,r3b:30,net:15},
+      vtt:    {c1b:80, c1w:30,c2:12,c3b:90, c3w:40,t1b:45,t1w:20,t2b:55,t2w:25,t3b:30,t3w:15,r1b:35,r1w:12,r2b:60,r2w:25,r3b:20,net:10},
+      route:  {c1b:90, c1w:35,c2:12,c3b:100,c3w:45,t1b:50,t1w:22,t2b:60,t2w:28,t3b:35,t3w:18,r1b:40,r1w:14,r2b:65,r2w:28,r3b:22,net:10},
+      ville:  {c1b:55, c1w:20,c2:10,c3b:65, c3w:28,t1b:35,t1w:15,t2b:40,t2w:18,t3b:25,t3w:12,r1b:28,r1w:10,r2b:45,r2w:18,r3b:15,net:10},
+      enfant: {c1b:30, c1w:12,c2:6, c3b:35, c3w:15,t1b:20,t1w:8, t2b:22,t2w:10,t3b:15,t3w:7, r1b:15,r1w:6, r2b:25,r2w:10,r3b:10,net:8},
+      bmx:    {c1b:40, c1w:15,c2:8, c3b:0,  c3w:0, t1b:25,t1w:10,t2b:30,t2w:12,t3b:20,t3w:8, r1b:20,r1w:8, r2b:35,r2w:14,r3b:12,net:8},
+    };
+    return tables[t] || tables.ville;
+  }());
   var repairs=[];
-  // === CRITÈRES SPÉCIFIQUES PAR ID ===
-  // Cadre & Fourche
   if(sc.c1==='bad'||sc.c1==='warn')
     repairs.push({l:'Cadre \u00e0 inspecter',
       desc:'Une anomalie a \u00e9t\u00e9 d\u00e9tect\u00e9e sur le cadre. Le technicien v\u00e9rifiera les fissures et d\u00e9formations.',
-      impact:'Diagnostic atelier obligatoire',i:sc.c1==='bad'?-40:-15,prio:sc.c1==='bad'?'urgent':'important'});
+      impact:'Diagnostic atelier obligatoire',i:sc.c1==='bad'?-COUT.c1b:-COUT.c1w,prio:sc.c1==='bad'?'urgent':'important'});
   if(sc.c2==='bad')
     repairs.push({l:'Rayures importantes',
       desc:'Des rayures significatives ont \u00e9t\u00e9 d\u00e9clar\u00e9es. Elles impactent la valeur de revente.',
-      impact:'Impact visuel',i:-10,prio:'standard'});
+      impact:'Impact visuel',i:-COUT.c2,prio:'standard'});
   if(sc.c3==='bad'||sc.c3==='warn')
     repairs.push({l:'Fourche \u00e0 v\u00e9rifier',
       desc:'La fourche pr\u00e9sente un probl\u00e8me d\u2019alignement ou de jeu. Contr\u00f4le atelier n\u00e9cessaire.',
-      impact:'Pi\u00e8ces + main-d\'oeuvre',i:sc.c3==='bad'?-35:-20,prio:sc.c3==='bad'?'urgent':'important'});
-  // Freins & Transmission
+      impact:'Pi\u00e8ces + main-d\u2019oeuvre',i:sc.c3==='bad'?-COUT.c3b:-COUT.c3w,prio:sc.c3==='bad'?'urgent':'important'});
   if(sc.t1==='bad'||sc.t1==='warn')
     repairs.push({l:'Freins \u00e0 remplacer',
-      desc:'Les freins pr\u00e9sentent une usure importante. Decathlon remplacera les plaquettes avant la remise en vente, pour garantir la s\u00e9curit\u00e9 du futur acheteur.',
-      impact:'Pi\u00e8ces + main-d\'oeuvre atelier',i:sc.t1==='bad'?-35:-20,prio:sc.t1==='bad'?'urgent':'important'});
+      desc:'Les freins pr\u00e9sentent une usure importante. Decathlon remplacera les plaquettes avant la remise en vente.',
+      impact:'Pi\u00e8ces + main-d\u2019oeuvre atelier',i:sc.t1==='bad'?-COUT.t1b:-COUT.t1w,prio:sc.t1==='bad'?'urgent':'important'});
   if(sc.t2==='bad'||sc.t2==='warn')
     repairs.push({l:'Transmission \u00e0 r\u00e9viser',
-      desc:'La cha\u00eene ou les vitesses n\u00e9cessitent une intervention. Notre atelier v\u00e9rifiera l\u2019\u00e9longation et le passage des vitesses.',
-      impact:'Pi\u00e8ces + main-d\'oeuvre atelier',i:sc.t2==='bad'?-25:-15,prio:sc.t2==='bad'?'urgent':'important'});
+      desc:'La cha\u00eene ou les vitesses n\u00e9cessitent une intervention. Notre atelier v\u00e9rifiera l\u2019\u00e9longation.',
+      impact:'Pi\u00e8ces + main-d\u2019oeuvre atelier',i:sc.t2==='bad'?-COUT.t2b:-COUT.t2w,prio:sc.t2==='bad'?'urgent':'important'});
   if(sc.t3==='bad'||sc.t3==='warn')
     repairs.push({l:'D\u00e9railleur \u00e0 r\u00e9gler',
       desc:'Le d\u00e9railleur est mal align\u00e9 ou les c\u00e2bles sont us\u00e9s.',
-      impact:'Main-d\'oeuvre atelier',i:sc.t3==='bad'?-20:-10,prio:sc.t3==='bad'?'important':'standard'});
-  // Roues & Pneus
+      impact:'Main-d\u2019oeuvre atelier',i:sc.t3==='bad'?-COUT.t3b:-COUT.t3w,prio:sc.t3==='bad'?'important':'standard'});
   if(sc.r1==='bad'||sc.r1==='warn')
     repairs.push({l:'Pneus \u00e0 remplacer',
-      desc:'Un ou les deux pneus pr\u00e9sentent une usure importante ou des signes de crevaison.',
-      impact:'Pi\u00e8ces + main-d\'oeuvre',i:sc.r1==='bad'?-25:-10,prio:sc.r1==='bad'?'urgent':'important'});
+      desc:'Un ou les deux pneus pr\u00e9sentent une usure importante.',
+      impact:'Pi\u00e8ces + main-d\u2019oeuvre',i:sc.r1==='bad'?-COUT.r1b:-COUT.r1w,prio:sc.r1==='bad'?'urgent':'important'});
   if(sc.r2==='bad'||sc.r2==='warn')
     repairs.push({l:'Jantes \u00e0 v\u00e9rifier',
       desc:'Les jantes pr\u00e9sentent un voile ou des fissures. Contr\u00f4le technique n\u00e9cessaire.',
-      impact:'Pi\u00e8ces + main-d\'oeuvre',i:sc.r2==='bad'?-30:-15,prio:sc.r2==='bad'?'urgent':'important'});
+      impact:'Pi\u00e8ces + main-d\u2019oeuvre',i:sc.r2==='bad'?-COUT.r2b:-COUT.r2w,prio:sc.r2==='bad'?'urgent':'important'});
   if(sc.r3==='bad')
     repairs.push({l:'Rayons \u00e0 remplacer',
       desc:'Des rayons sont cass\u00e9s ou d\u00e9form\u00e9s.',
-      impact:'Pi\u00e8ces + main-d\'oeuvre',i:-15,prio:'important'});
-  // Catégories non-vélo : critères génériques
-  Object.entries(sc).forEach(function(e){
-    var id=e[0],val=e[1];
-    // Ignorer les critères vélo déjà traités
-    if(['c1','c2','c3','t1','t2','t3','r1','r2','r3'].indexOf(id)>=0) return;
-    if(val==='bad')
-      repairs.push({l:'\u00c9l\u00e9ment \u00e0 remplacer ('+id+')',
-        desc:'Un \u00e9l\u00e9ment en mauvais \u00e9tat a \u00e9t\u00e9 d\u00e9tect\u00e9. Le technicien Decathlon \u00e9valuera la n\u00e9cessit\u00e9 de remplacement.',
-        impact:'Pi\u00e8ces + main-d\'oeuvre',i:-25,prio:'important'});
-    else if(val==='warn')
-      repairs.push({l:'\u00c9l\u00e9ment \u00e0 v\u00e9rifier ('+id+')',
-        desc:'Un \u00e9l\u00e9ment n\u00e9cessite une v\u00e9rification suppl\u00e9mentaire.',
-        impact:'Main-d\'oeuvre atelier',i:-10,prio:'standard'});
-  });
-  // Nettoyage toujours inclus
+      impact:'Pi\u00e8ces + main-d\u2019oeuvre',i:-COUT.r3b,prio:'important'});  // Nettoyage toujours inclus
   repairs.push({l:'Nettoyage & pr\u00e9paration',
     desc:'Chaque \u00e9quipement Seconde Vie est nettoy\u00e9, d\u00e9graiss\u00e9 et contr\u00f4l\u00e9 avant d\'\u00eatre remis en vente.',
     impact:'Service inclus dans le processus qualit\u00e9',i:-10,prio:'standard'});
@@ -539,6 +313,17 @@ function pR(){
       desc:'Aucune anomalie majeure d\u00e9tect\u00e9e lors de votre auto-diagnostic. Le technicien confirmera cet \u00e9tat en magasin.',
       impact:'Pas de d\u00e9duction suppl\u00e9mentaire pr\u00e9vue',i:0,prio:'standard'});
   var deductions=repairs.reduce(function(a,r){return a+r.i;},0);
+  // Si les coûts de réparation dépassent la valeur estimée → REFUS
+  var adj;
+  if(Math.abs(deductions) >= offreBrute) {
+    adj = 0;
+    S.finalPrice = 0;
+    S.reprisRefusee = true;
+  } else {
+    adj = Math.max(5, Math.round((offreBrute+deductions)/5)*5);
+    S.finalPrice = adj;
+    S.reprisRefusee = false;
+  }
   var prioBg={urgent:'var(--red-lt)',important:'var(--orange-lt)',standard:'var(--bg)'};
   var prioColor={urgent:'var(--red)',important:'var(--orange)',standard:'var(--gray)'};
   var prioIco={urgent:'\u26a0',important:'\ud83d\udd27',standard:'\u2705'};
@@ -566,7 +351,7 @@ function pR(){
           '<div style="font-size:13px;color:var(--gray)">Valeur estim\u00e9e du v\u00e9lo</div>'+
           '<div style="font-size:11px;color:var(--gray);margin-top:1px">Bas\u00e9e sur l\'age, le kilom\u00e9trage et votre d\u00e9claration</div>'+
         '</div>'+
-        '<span style="font-weight:700;font-size:15px">'+price+' \u20ac</span>'+
+        '<span style="font-weight:700;font-size:15px">'+offreBrute+' \u20ac</span>'+
       '</div>'+
       '<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 0;border-bottom:1px solid var(--border)">'+
         '<div>'+
@@ -603,9 +388,23 @@ function pR(){
     '<button class="btn bb mb8" onclick="go(\'result\')">Voir mon estimation finale \u2192</button>'+
     '<button class="btn bk" onclick="go(\'diag\')">\u2190 Revoir mon diagnostic</button>'+
   '</div>';
-}
-function pRes(){
-  var mapped=getCS();var score=calcScore(mapped);var price=calcPrice(score,S.meta);var adj=Math.max(0,Math.round(price*0.9/5)*5);
+}function pRes(){
+  var mapped=getCS();var score=calcScore(mapped);var price=calcPrice(score,S.meta);
+  var offreBrute=Math.max(5,Math.round(price*0.9/5)*5);
+  var adj=S.finalPrice||offreBrute;
+  // Cas de refus : coûts de réparation supérieurs à la valeur
+  if(S.reprisRefusee) {
+    return '<div style="background:#D70321;min-height:100vh;padding:40px 20px;color:#fff;text-align:center">'+
+      '<div style="font-size:64px;margin-bottom:16px">🚫</div>'+
+      '<div style="font-size:28px;font-weight:900;margin-bottom:12px">Reprise impossible</div>'+
+      '<div style="font-size:16px;opacity:.85;line-height:1.6;margin-bottom:32px">Les coûts de réparation nécessaires dépassent la valeur estimée de votre équipement.<br><br>Decathlon Seconde Vie ne peut pas faire une offre de reprise dans ces conditions.</div>'+
+      '<div style="background:rgba(255,255,255,.15);border-radius:16px;padding:20px;margin-bottom:32px">'+
+        '<div style="font-weight:700;margin-bottom:8px">Que faire de votre équipement ?</div>'+
+        '<div style="font-size:14px;opacity:.85;line-height:1.7">• Le vendre directement sur <strong>LeBonCoin</strong> ou <strong>Vinted</strong><br>• Le déposer en <strong>recyclerie</strong><br>• Le faire réparer avant de revenir</div>'+
+      '</div>'+
+      '<button class="btn" style="background:#fff;color:#D70321;font-weight:800" onclick="resetClient()">Retour \u00e0 l\'accueil</button>'+
+    '</div>';
+  }
   var _annee=parseInt(S.meta.year)||2021;
   var _age=Math.max(0,2026-_annee);
   var _af=_age===0?0.55:_age===1?0.50:_age===2?0.44:_age===3?0.38:_age<=5?0.30:_age<=8?0.24:0.18;
@@ -724,7 +523,7 @@ function pRdv(){
 }
 
 function pConf(){
-  var mapped=getCS();var adj=Math.max(0,Math.round(calcPrice(calcScore(mapped),S.meta)*0.9/5)*5);
+  var mapped=getCS();var adj=S.finalPrice||Math.max(5,Math.round(calcPrice(calcScore(mapped),S.meta)*0.9/5)*5);
   return '<div style="background:var(--blue);padding:52px 20px 28px;text-align:center;color:#fff">'+
     '<div style="width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,.25);display:flex;align-items:center;justify-content:center;margin:0 auto 14px">'+svgCheck()+'</div>'+
     '<div style="font-size:24px;font-weight:800;letter-spacing:-.01em">Rendez-vous confirmé !</div>'+
@@ -873,8 +672,24 @@ function pSD(){
       '<div style="font-weight:700;color:var(--orange);margin-bottom:5px;display:flex;align-items:center;gap:6px">'+ic('<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>')+'Points à vérifier en priorité</div>'+
       '<div style="font-size:13px;line-height:1.5">Freinage — l\'état déclaré diffère de la norme pour cet âge de vélo.</div>'+
     '</div>'+
-    '<button class="btn bb mb8" onclick="S.sstep=0;S.sscores={};go(\'seller_diag\')">Diagnostic guidé →</button>'+
-    '<button class="btn bo" onclick="S.sstep=0;S.sscores={};go(\'seller_diag\')">Mode expert</button>'+
+    (d.status==='done'?
+      '<div style="background:var(--green-dk);color:#fff;border-radius:14px;padding:14px 20px;margin-bottom:16px;display:flex;align-items:center;gap:12px">'+
+        '<span style="font-size:24px">✅</span>'+
+        '<div>'+
+          '<div style="font-weight:700;font-size:15px">Dossier traité — Reprise confirmée</div>'+
+          '<div style="font-size:13px;opacity:.85">Validé par '+( d.sellerName||'le vendeur')+'</div>'+
+        '</div>'+
+      '</div>':
+      d.status==='refused'?
+      '<div style="background:var(--red);color:#fff;border-radius:14px;padding:14px 20px;margin-bottom:16px;display:flex;align-items:center;gap:12px">'+
+        '<span style="font-size:24px">❌</span>'+
+        '<div>'+
+          '<div style="font-weight:700;font-size:15px">Dossier traité — Reprise refusée</div>'+
+          '<div style="font-size:13px;opacity:.85">Le vélo ne correspond pas aux critères Seconde Vie</div>'+
+        '</div>'+
+      '</div>':'')+
+    ((!d.status)?'<button class="btn bb mb8" onclick="S.sstep=0;S.sscores={};go(\'seller_diag\')">Diagnostic guidé →</button>'+
+    '<button class="btn bo" onclick="S.sstep=0;S.sscores={};go(\'seller_diag\')">Mode expert</button>':'')+
   '</div>';
 }
 
@@ -913,7 +728,7 @@ function pSDiag(){
         '</div>':'')+
     '</div>';
   }).join('');
-  return hdr(svgBack(),'','Diagnostic · '+sec.label,sec.step+' — '+sec.desc,pct)+
+  return hdr(svgBack(),'sellerDiagBack()','Diagnostic · '+sec.label,sec.step+' — '+sec.desc,pct)+
   '<div class="p16">'+
     (isGuide?'<div class="info mb12" style="border-left-color:var(--blue)">'+svgInfo()+
       '<span><strong>Mode guidé</strong> — Suivez les instructions pour chaque point. Les champs surlignés en bleu indiquent ce que le client a déclaré.</span></div>':
@@ -952,8 +767,8 @@ function pSRes(){
     '<div style="font-size:15px;font-weight:700;margin-bottom:5px">Offre ajustée</div>'+
     '<div style="font-size:36px;font-weight:900;color:var(--blue);margin-bottom:6px;letter-spacing:-.02em">'+adj+' €<span style="font-size:14px;color:var(--gray);font-weight:400;margin-left:8px">initial : '+d.price+' €</span></div>'+
     '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:16px">'+
-      '<button class="btn br2" onclick="go(\'seller_home\')">✕ Refuser</button>'+
-      '<button class="btn bg" onclick="go(\'seller_home\')">✓ Accepter</button>'+
+      '<button class="btn br2" onclick="sellerRefuse()">✕ Refuser</button>'+
+      '<button class="btn bg" onclick="sellerAccept()">✓ Confirmer la reprise</button>'+
     '</div>'+
   '</div>';
 }
@@ -1144,8 +959,9 @@ function pCompte(){
 
 // ===== HDR HELPER =====
 function hdr(backIcon,backPage,title,sub,prog){
+  var backFn=backPage?(backPage.indexOf('(')<0?"go('"+backPage+"')":backPage):'diagBack()';
   return '<div class="hwhite">'+
-    '<button class="hback" onclick="'+(backPage?"go('"+backPage+"')":'diagBack()')+'">'+backIcon+'</button>'+
+    '<button class="hback" onclick="'+backFn+'">'+backIcon+'</button>'+
     '<div style="flex:1">'+
       '<div class="htitle">'+title+'</div>'+
       (sub?'<div class="hsub">'+sub+'</div>':'')+
@@ -1230,6 +1046,11 @@ function addPhoto(id){
 function setScore(id,v){S.scores[id]=v;render();}window.setScore=setScore;
 function setSScore(id,v){S.sscores[id]=v;render();}window.setSScore=setSScore;
 function diagBack(){if(S.step>0){S.step--;render();}else{go('step_info');}}window.diagBack=diagBack;
+function sellerDiagBack(){
+  if(S.sstep>0){S.sstep--;render();}
+  else{go('seller_dos');}
+}
+window.sellerDiagBack=sellerDiagBack;
 function diagNext(){var _ds=(S.meta.cat&&CDIAG_BY_CAT[S.meta.cat])||CDIAG;if(S.step<_ds.length-1){S.step++;render();}else{go('repairs');}}window.diagNext=diagNext;
 function sellerDiagBack(){if(S.sstep>0){S.sstep--;render();}else{go('seller_dos');}}window.sellerDiagBack=sellerDiagBack;
 function sellerDiagNext(){if(S.sstep<VDIAG.length-1){S.sstep++;render();}else{go('seller_result');}}window.sellerDiagNext=sellerDiagNext;
@@ -1237,6 +1058,27 @@ function sellerNewDiagNext(){if(S.sstep<VDIAG.length-1){S.sstep++;render();}else
 function resetClient(){S.meta={type:'',brand:'',model:'',year:'2021',price:'',km:1500,cat:''};S.scores={};S.photos={};S.step=0;S.code=null;go('home');}window.resetClient=resetClient;
 window.doLogin=doLogin;window.doSellerLogin=doSellerLogin;
 window.startPhoto=startPhoto;window.capturePhoto=capturePhoto;window.stopPhoto=stopPhoto;
+function sellerAccept(){
+  if(window.DOS[S.sellerCode]){
+    window.DOS[S.sellerCode].status='done';
+    window.DOS[S.sellerCode].statusLabel='Reprise confirmée';
+    window.DOS[S.sellerCode].statusColor='var(--green-dk)';
+    window.DOS[S.sellerCode].sellerName=S.seller?S.seller.name:'';
+  }
+  go('seller_home');
+}
+window.sellerAccept=sellerAccept;
+
+function sellerRefuse(){
+  if(window.DOS[S.sellerCode]){
+    window.DOS[S.sellerCode].status='refused';
+    window.DOS[S.sellerCode].statusLabel='Reprise refusée';
+    window.DOS[S.sellerCode].statusColor='var(--red)';
+  }
+  go('seller_home');
+}
+window.sellerRefuse=sellerRefuse;
+
 function sellerLogout(){S.seller=null;S.client=null;go('login');}window.sellerLogout=sellerLogout;
 function loadDossier(code){S.sellerCode=code;S.sscores={};S.sstep=0;go('seller_dos');}window.loadDossier=loadDossier;
 function searchDos(){
@@ -1277,10 +1119,8 @@ window.stopScan=stopScan;
 document.addEventListener('DOMContentLoaded',function(){
   document.getElementById('nav-home').addEventListener('click',function(){go('home');});
   document.getElementById('nav-cat').addEventListener('click',function(){go('catalogue');});
-  document.getElementById('nav-sv').addEventListener('click',function(){go('home');});
+  document.getElementById('nav-sv').addEventListener('click',function(){go(S.seller&&!S.client?'seller_home':'home');});
   document.getElementById('nav-acc').addEventListener('click',function(){go('compte');});
   document.getElementById('stop-scan-btn').addEventListener('click',function(){window.stopScan();});
   render();
 });
-
- // Correction de la persistance d'etat pour le prix de l'estimation
