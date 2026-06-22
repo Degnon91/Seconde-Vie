@@ -1,6 +1,7 @@
 /**
  * scoring.js — Moteur de diagnostic et de calcul de prix
  * Decathlon Seconde Vie — EEMI x Decathlon — Bloc A4
+ * Auteur : Ahonon Laye DIFEWE
  * Charger ce fichier AVANT app.js
  */
 
@@ -419,6 +420,7 @@ function pH(){
       '<div style="display:flex;align-items:center;gap:6px">'+
         '<div style="background:rgba(255,255,255,.15);border-radius:8px;width:30px;height:30px;display:flex;align-items:center;justify-content:center;padding:4px"></div>'+
         '<span style="font-size:20px;font-weight:900;letter-spacing:-.02em">Seconde Vie</span>'+
+        '<span style="font-size:13px;font-weight:900;color:rgba(255,255,255,.7);margin-left:8px">50 ans</span>'+
       '</div>'+
       '<div style="display:flex;align-items:center;gap:5px;background:rgba(255,255,255,.15);border-radius:var(--r-pill);padding:5px 12px 5px 6px">'+svgPerson()+'<span style="font-size:13px;font-weight:600">'+(S.client&&S.client.name?S.client.name:'Moi')+'</span></div>'+
     '</div>'+
@@ -568,3 +570,26 @@ function pI(){
 
 
 // Schémas SVG de diagnostic par section
+
+/**
+ * app.js — Application Seconde Vie (UI, pages, navigation)
+ * Decathlon Seconde Vie — EEMI x Decathlon — Bloc A4
+ * Requiert scoring.js chargé en premier
+ */
+
+/**
+ * scoring.js — Moteur de diagnostic et de calcul de prix
+ * Decathlon Seconde Vie — EEMI × Decathlon — Bloc A4
+ * Auteur livrable : Ahonon Laye DIFEWE
+ *
+ * CONTIENT :
+ *   - Données métier : TYPES, BRANDS_BY_CAT, BRANDS_BY_TYPE
+ *   - Critères de diagnostic : CDIAG, CDIAG_BY_CAT (16 catégories), VDIAG
+ *   - Tables de conversion : SMAP, SLBL, VLBL, VMAP
+ *   - Moteur de scoring : calcScore(), calcPrice()
+ *   - Helpers : getCS(), decision(), mkCode()
+ *
+ * USAGE : charger AVANT app.js
+ *   [scoring.js doit être chargé en premier]
+ *   [puis app.js]
+ */

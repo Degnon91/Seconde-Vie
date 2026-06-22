@@ -1,24 +1,14 @@
 /**
  * app.js — Application Seconde Vie (UI, pages, navigation)
  * Decathlon Seconde Vie — EEMI x Decathlon — Bloc A4
- * Requiert scoring.js chargé en premier
+ * Auteur : Ahonon Laye DIFEWE
+ * Requiert scoring.js charge en premier
  */
 
 /**
  * scoring.js — Moteur de diagnostic et de calcul de prix
- * Decathlon Seconde Vie — EEMI × Decathlon — Bloc A4
- * Auteur livrable : Ahonon Laye DIFEWE
- *
- * CONTIENT :
- *   - Données métier : TYPES, BRANDS_BY_CAT, BRANDS_BY_TYPE
- *   - Critères de diagnostic : CDIAG, CDIAG_BY_CAT (16 catégories), VDIAG
- *   - Tables de conversion : SMAP, SLBL, VLBL, VMAP
- *   - Moteur de scoring : calcScore(), calcPrice()
- *   - Helpers : getCS(), decision(), mkCode()
- *
- * USAGE : charger AVANT app.js
- *   [scoring.js doit être chargé en premier]
- *   [puis app.js]
+ * Decathlon Seconde Vie — EEMI x Decathlon — Bloc A4
+ * Charger ce fichier AVANT app.js
  */
 
 var DIAG_SVG = {
@@ -268,6 +258,28 @@ function pR(){
     return tables[t] || tables.ville;
   }());
   var repairs=[];
+  // REFUS IMMEDIAT si freins ou cadre bloquants
+  var raisonRefus=sc.t1==='bad'?'freins':sc.c1==='bad'?'cadre':null;
+  if(raisonRefus){
+    S.finalPrice=0;S.reprisRefusee=true;
+    var msgR=raisonRefus==='freins'
+      ?'Les freins sont en mauvais \u00e9tat. Decathlon ne peut pas revendre un v\u00e9lo avec un syst\u00e8me de freinage d\u00e9faillant.'
+      :'Le cadre pr\u00e9sente une anomalie structurelle. Decathlon ne peut pas revendre un v\u00e9lo dont la structure n\'est pas fiable.';
+    return '<div style="background:#D70321;min-height:100vh;padding:40px 20px;color:#fff;text-align:center">'+
+      '<div style="font-size:56px;margin-bottom:16px">\uD83D\uDEAB</div>'+
+      '<div style="font-size:26px;font-weight:900;margin-bottom:12px">Reprise impossible</div>'+
+      '<div style="font-size:15px;opacity:.85;line-height:1.6;margin-bottom:28px">'+msgR+'</div>'+
+      '<div style="background:rgba(255,255,255,.15);border-radius:14px;padding:18px;margin-bottom:28px">'+
+        '<div style="font-weight:700;margin-bottom:8px">Que faire ?</div>'+
+        '<div style="font-size:13px;opacity:.85;line-height:1.7">'+
+          (raisonRefus==='freins'
+            ?'\u2022 Faire r\u00e9parer les freins chez un atelier v\u00e9lo<br>\u2022 Revenir avec le v\u00e9lo r\u00e9par\u00e9<br>\u2022 Le vendre sur LeBonCoin en mentionnant l\'\u00e9tat'
+            :'\u2022 Faire inspecter le cadre par un technicien<br>\u2022 Si r\u00e9parable, revenir apr\u00e8s r\u00e9paration<br>\u2022 Sinon le vendre en pi\u00e8ces d\u00e9tach\u00e9es')+
+        '</div>'+
+      '</div>'+
+      '<button class="btn" style="background:#fff;color:#D70321;font-weight:800" onclick="resetClient()">Retour \u00e0 l\'accueil</button>'+
+    '</div>';
+  }
   if(sc.c1==='bad'||sc.c1==='warn')
     repairs.push({l:'Cadre \u00e0 inspecter',
       desc:'Une anomalie a \u00e9t\u00e9 d\u00e9tect\u00e9e sur le cadre. Le technicien v\u00e9rifiera les fissures et d\u00e9formations.',
@@ -668,10 +680,18 @@ function pSD(){
         dr('Score client',d.score+'/100')+'<div><div style="color:var(--gray);font-size:11px;font-weight:600;margin-bottom:3px;letter-spacing:.01em">ESTIMATION</div><div style="font-weight:800;font-size:20px;color:var(--blue)">'+d.price+' €</div></div>'+
       '</div>'+
     '</div>'+
-    '<div class="card mb16 warn-box">'+
-      '<div style="font-weight:700;color:var(--orange);margin-bottom:5px;display:flex;align-items:center;gap:6px">'+ic('<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>')+'Points à vérifier en priorité</div>'+
-      '<div style="font-size:13px;line-height:1.5">Freinage — l\'état déclaré diffère de la norme pour cet âge de vélo.</div>'+
-    '</div>'+
+    (function(){
+      var sc=d.scores||{};
+      var lblMap={c1:'Cadre',c2:'Rayures',c3:'Fourche',t1:'Freinage',t2:'Vitesses & chaîne',t3:'Dérailleur',r1:'Pneus',r2:'Jantes',r3:'Rayons'};
+      var problemes=Object.entries(sc).filter(function(e){return e[1]==='bad'||e[1]==='warn';}).map(function(e){return lblMap[e[0]]||e[0];});
+      if(problemes.length===0) return '';
+      return '<div class="card mb16 warn-box">'+
+        '<div style="font-weight:700;color:var(--orange);margin-bottom:5px;display:flex;align-items:center;gap:6px">'+
+        ic('<path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>') +
+        'Points à vérifier en priorité</div>'+
+        '<div style="font-size:13px;line-height:1.5">'+problemes.join(' · ')+' — état déclaré à vérifier en magasin.</div>'+
+      '</div>';
+    }())+
     (d.status==='done'?
       '<div style="background:var(--green-dk);color:#fff;border-radius:14px;padding:14px 20px;margin-bottom:16px;display:flex;align-items:center;gap:12px">'+
         '<span style="font-size:24px">✅</span>'+
@@ -742,6 +762,28 @@ function pSRes(){
   var d=window.DOS[S.sellerCode]||{price:87,score:72};
   var blocked=Object.values(S.sscores).filter(function(v){return v==='bl';}).length;
   var toFix=Object.values(S.sscores).filter(function(v){return v==='r';}).length;
+  // REFUS si cadre (s1) ou freins (s3) bloquants selon diagnostic vendeur
+  var raisonVendeur=S.sscores.s1==='bl'?'cadre':S.sscores.s3==='bl'?'freins':null;
+  if(raisonVendeur){
+    return '<div style="background:#D70321;min-height:100vh;padding:40px 20px;color:#fff;text-align:center">'+
+      '<div style="font-size:56px;margin-bottom:16px">\uD83D\uDEAB</div>'+
+      '<div style="font-size:26px;font-weight:900;margin-bottom:12px">Reprise refus\u00e9e</div>'+
+      '<div style="font-size:15px;opacity:.85;line-height:1.6;margin-bottom:24px">'+
+        (raisonVendeur==='cadre'
+          ?'Le diagnostic technicien confirme une anomalie structurelle sur le cadre. Ce v\u00e9lo ne peut pas \u00eatre remis en vente.'
+          :'Le diagnostic technicien confirme que les freins sont dans un \u00e9tat bloquant. Ce v\u00e9lo ne peut pas \u00eatre remis en vente en l\'\u00e9tat.')+
+      '</div>'+
+      '<div style="background:rgba(255,255,255,.15);border-radius:14px;padding:16px;margin-bottom:24px;font-size:14px;opacity:.85;line-height:1.7">'+
+        '\u2022 Informer le client du motif de refus<br>'+
+        '\u2022 Proposer la r\u00e9paration en atelier Decathlon<br>'+
+        '\u2022 Ou orienter vers le bac de recyclage en magasin'+
+      '</div>'+
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">'+
+        '<button class="btn br2" onclick="go(\'seller_dos\')">\u2190 Retour dossier</button>'+
+        '<button class="btn" style="background:#fff;color:#D70321;font-weight:800" onclick="go(\'seller_home\')">Tableau de bord</button>'+
+      '</div>'+
+    '</div>';
+  }
   var adj=Math.max(0,d.price-blocked*30-toFix*15);var ecart=d.price-adj;
   var rows=VDIAG.map(function(sec){return sec.crit.map(function(c){
     var sv=S.sscores[c.id];var svL=sv?VLBL[sv]:'—';
